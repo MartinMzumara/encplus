@@ -5,6 +5,7 @@ import '../components/custom_nav.dart';
 import 'decrypt_page.dart';
 import 'encrypt_page.dart';
 import 'homepage.dart';
+import 'login_page.dart';
 
 class SettingsPage extends StatefulWidget {
   @override
@@ -35,7 +36,11 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
-    Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+    // ignore: use_build_context_synchronously
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginPage()),
+    );
   }
 
   @override
@@ -91,7 +96,11 @@ class _SettingsPageState extends State<SettingsPage> {
               onPressed: _logout,
               child: const Text(
                 'Logout',
-                style: TextStyle(color: Colors.red),
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -119,21 +128,21 @@ class _SettingsPageState extends State<SettingsPage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => HomePage(),
+                builder: (context) => const HomePage(),
               ),
             );
           } else if (index == 1) {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const EncryptionPage(),
+                builder: (context) => EncryptionPage(),
               ),
             );
           } else if (index == 2) {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const DecryptionPage(),
+                builder: (context) => DecryptionPage(),
               ),
             );
           } else if (index == 3) {

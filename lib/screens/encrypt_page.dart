@@ -1,74 +1,112 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:encrypt/encrypt.dart' as encrypt;
-
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
+import 'package:crypto/crypto.dart';
 import '../components/custom_nav.dart';
+import '../services/file_utils.dart';
 import 'decrypt_page.dart';
 import 'homepage.dart';
 import 'settings_page.dart';
 
-class EncryptionPage extends StatefulWidget {
-  const EncryptionPage({super.key});
+final String loginPassword = 'FileEncryption';
 
+class EncryptionPage extends StatefulWidget {
   @override
   _EncryptionPageState createState() => _EncryptionPageState();
 }
 
 class _EncryptionPageState extends State<EncryptionPage> {
-  final TextEditingController _textController = TextEditingController();
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  String _encryptedText = '';
+  File? _selectedFile;
+  String _statusText = '';
 
-  void _encryptText(String text) {
-    final key = encrypt.Key.fromLength(32);
-    final iv = encrypt.IV.fromLength(16);
-    final encrypter = encrypt.Encrypter(encrypt.AES(key));
-    final encrypted = encrypter.encrypt(text, iv: iv);
-    setState(() {
-      _encryptedText = encrypted.base64;
-    });
+  Future<void> _selectFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles();
+    if (result != null) {
+      setState(() {
+        _selectedFile = File(result.files.single.path!);
+      });
+    }
+  }
+
+  Future<void> _encryptFile() async {
+    if (_selectedFile == null) {
+      setState(() {
+        _statusText = 'Please select a file to encrypt.';
+      });
+      return;
+    }
+
+    try {
+      // Read the contents of the selected file.
+      Uint8List fileContents = await _selectedFile!.readAsBytes();
+
+      // Generate an encryption key from the user's login password.
+      Uint8List? loginPasswordBytes = utf8.encode(loginPassword) as Uint8List?;
+      Uint8List? key = sha256.convert(loginPasswordBytes!).bytes as Uint8List?;
+
+      // Generate an IV for AES encryption.
+      Uint8List iv = generateIV();
+
+      // Encrypt the file contents.
+      Uint8List encryptedContents = encrypt(fileContents, key!, iv);
+
+      // Save the encrypted file to a new file.
+      Directory appDocDir = await getApplicationDocumentsDirectory();
+      String encryptedFilePath = path.join(
+          appDocDir.path, 'encrypted_${_selectedFile!.path.split('/').last}');
+      File encryptedFile = File(encryptedFilePath);
+      await encryptedFile.writeAsBytes(encryptedContents);
+
+      setState(() {
+        _statusText = 'File encrypted successfully.';
+      });
+    } catch (e) {
+      setState(() {
+        _statusText = 'Error encrypting file: $e';
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Encryption Page'),
+        title: const Text('Encryption'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextFormField(
-                controller: _textController,
-                decoration: const InputDecoration(labelText: 'Text to Encrypt'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter text to encrypt';
-                  }
-                  return null;
-                },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: _selectedFile == null
+                  ? const Text('No file selected.')
+                  : Text('Selected file: ${_selectedFile!.path}'),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _selectFile,
+              child: const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text('Select File'),
               ),
-              const SizedBox(height: 16.0),
-              ElevatedButton(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    _encryptText(_textController.text);
-                  }
-                },
-                child: const Text('Encrypt'),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _encryptFile,
+              child: const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text('Encrypt File'),
               ),
-              const SizedBox(height: 16.0),
-              const Text(
-                'Encrypted Text:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8.0),
-              SelectableText(_encryptedText),
-            ],
-          ),
+            ),
+            const SizedBox(height: 16),
+            Text(_statusText),
+          ],
         ),
       ),
       bottomNavigationBar: CustomNavigationBar(
@@ -79,11 +117,11 @@ class _EncryptionPageState extends State<EncryptionPage> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.lock),
-            label: 'Search',
+            label: 'Encrypt',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.lock_open),
-            label: 'Favorites',
+            label: 'Decrypt',
           ),
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings')
         ],
@@ -93,21 +131,21 @@ class _EncryptionPageState extends State<EncryptionPage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => HomePage(),
+                builder: (context) => const HomePage(),
               ),
             );
           } else if (index == 1) {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const EncryptionPage(),
+                builder: (context) => EncryptionPage(),
               ),
             );
           } else if (index == 2) {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const DecryptionPage(),
+                builder: (context) => DecryptionPage(),
               ),
             );
           } else if (index == 3) {

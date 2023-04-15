@@ -22,8 +22,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blueGrey,
-      ),
+          primarySwatch: Colors.blueGrey,
+          bottomNavigationBarTheme: BottomNavigationBarThemeData(
+            backgroundColor: Color(0xff000f19),
+          )),
       initialRoute: _auth.currentUser != null ? '/home' : '/login',
       routes: {
         '/login': (context) => LoginPage(),
